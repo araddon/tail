@@ -96,6 +96,46 @@ func TestLocationEnd(_t *testing.T) {
 	tail.Stop()
 }
 
+func TestTailAppend(_t *testing.T) {
+	t := NewTailTest("tailappend", _t)
+	t.CreateFile("test.txt", "hello\nworld\n")
+	tail := t.StartTail("test.txt", Config{Follow: true, ReOpen: true})
+	go t.VerifyTailOutput(tail, []string{"more", "data"})
+	<-time.After(50 * time.Millisecond)
+	t.AppendFile("test.txt", "more\ndata\n")
+
+	// Delete after a reasonable delay, to give tail sufficient time
+	// to read all lines.
+	<-time.After(100 * time.Millisecond)
+	t.RemoveFile("test.txt")
+
+	tail.Stop()
+}
+
+func TestMultiTailAppend(_t *testing.T) {
+	t := NewTailTest("multi-tail", _t)
+	t.CreateFile("test.txt", "hello\nworld\n")
+	t2 := NewTailTest("multi-tail2", _t)
+	t2.CreateFile("test2.txt", "hello\nworld\n")
+	tail := t.StartTail("test.txt", Config{Follow: true, ReOpen: true})
+	tail2 := t2.StartTail("test2.txt", Config{Follow: true, ReOpen: true})
+	go t.VerifyTailOutput(tail, []string{"more", "data"})
+	go t2.VerifyTailOutput(tail2, []string{"more", "data"})
+	<-time.After(50 * time.Millisecond)
+	t.AppendFile("test.txt", "more\ndata\n")
+	t2.AppendFile("test2.txt", "more\ndata\n")
+
+	// Delete after a reasonable delay, to give tail sufficient time
+	// to read all lines.
+	<-time.After(100 * time.Millisecond)
+
+	t.RemoveFile("test.txt")
+	t2.RemoveFile("test2.txt")
+
+	tail.Stop()
+	tail2.Stop()
+}
+
 func _TestReOpen(_t *testing.T, poll bool) {
 	var name string
 	if poll {
